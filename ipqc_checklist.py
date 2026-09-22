@@ -52,7 +52,6 @@ master_response = (
 
 checklists = master_response.data
 
-
 if not checklists:
     st.warning("No active checklist found.")
     st.stop()
@@ -136,13 +135,9 @@ version_response = (
 
 versions = version_response.data
 
-
 if not versions:
-    st.error(
-        "No active checklist revision found."
-    )
+    st.error("No active checklist revision found.")
     st.stop()
-
 
 version = versions[0]
 
@@ -166,11 +161,8 @@ items_response = (
 
 items = items_response.data
 
-
 if not items:
-    st.warning(
-        "No checklist items found."
-    )
+    st.warning("No checklist items found.")
     st.stop()
 
 
@@ -181,7 +173,6 @@ if not items:
 inspection_session_key = (
     f"{checklist_id}_{version_id}"
 )
-
 
 if (
     "inspection_session_key"
@@ -199,7 +190,6 @@ if (
         datetime.now(MALAYSIA_TZ)
     )
 
-
 inspection_datetime = (
     st.session_state.inspection_start_time
 )
@@ -210,19 +200,6 @@ inspection_datetime = (
 # =========================================================
 
 def get_shift_date(dt):
-    """
-    Shift cut-off:
-
-    DAY:
-        06:30 - 18:29
-
-    NIGHT:
-        18:30 - 06:29
-
-    For inspections between 00:00 and 06:29,
-    the shift belongs to the previous calendar day's
-    NIGHT shift.
-    """
 
     current_minutes = (
         dt.hour * 60
@@ -233,6 +210,7 @@ def get_shift_date(dt):
         6 * 60 + 30
     )
 
+    # 00:00 - 06:29 belongs to previous day's night shift
     if current_minutes < morning_cutoff:
 
         return (
@@ -262,7 +240,7 @@ def get_day_night(dt):
         18 * 60 + 30
     )
 
-    # 06:30 - 18:29
+    # DAY = 06:30 - 18:29
     if (
         day_start
         <= current_minutes
@@ -271,7 +249,7 @@ def get_day_night(dt):
 
         return "DAY"
 
-    # 18:30 - 06:29
+    # NIGHT = 18:30 - 06:29
     return "NIGHT"
 
 
@@ -283,18 +261,11 @@ def get_roster_crew(
     shift_date,
     shift_type
 ):
-    """
-    CPS 2026 roster calculation.
 
-    Anchor taken from supplied roster:
-
-    22-Sep-2026
-        DAY   = B
-        NIGHT = A
-
-    The roster follows the repeating CPS pattern
-    shown in the supplied work roster.
-    """
+    # Reference from supplied roster:
+    # 22-Sep-2026
+    # DAY   = B
+    # NIGHT = A
 
     anchor_date = date(
         2026,
@@ -308,22 +279,7 @@ def get_roster_crew(
     ).days
 
 
-    # -----------------------------------------------------
-    # DAY SHIFT ROSTER
-    #
-    # Anchor:
-    # 22-Sep-2026 = B
-    #
-    # CPS repeating pattern:
-    #
-    # B B B B
-    # C C C
-    # A A A A
-    # D D D
-    #
-    # 14-day cycle
-    # -----------------------------------------------------
-
+    # 14-day DAY roster cycle
     day_cycle = [
         "B",
         "B",
@@ -342,22 +298,7 @@ def get_roster_crew(
     ]
 
 
-    # -----------------------------------------------------
-    # NIGHT SHIFT ROSTER
-    #
-    # Anchor:
-    # 22-Sep-2026 = A
-    #
-    # CPS repeating pattern:
-    #
-    # A A A A
-    # D D D
-    # B B B B
-    # C C C
-    #
-    # 14-day cycle
-    # -----------------------------------------------------
-
+    # 14-day NIGHT roster cycle
     night_cycle = [
         "A",
         "A",
@@ -387,7 +328,6 @@ def get_roster_crew(
         return day_cycle[
             cycle_position
         ]
-
 
     return night_cycle[
         cycle_position
@@ -441,7 +381,6 @@ col_dt, col_shift = st.columns(
     [2, 1]
 )
 
-
 with col_dt:
 
     st.text_input(
@@ -451,7 +390,6 @@ with col_dt:
         ),
         disabled=True
     )
-
 
 with col_shift:
 
@@ -468,20 +406,17 @@ with col_shift:
 
 col1, col2, col3 = st.columns(3)
 
-
 with col1:
 
     lot_number = st.text_input(
         "Lot Number"
     )
 
-
 with col2:
 
     machine = st.text_input(
         "Machine"
     )
-
 
 with col3:
 
@@ -973,38 +908,58 @@ if st.button(
                 "inspection results saved."
             )
 
-# =========================================================
-# CHECK FOR FAILED ITEMS
-# =========================================================
 
-failed_items = [
-    item
-    for item in items
-    if (
-        answers[item["id"]]["type"] == "PASS_FAIL_NA"
-        and
-        answers[item["id"]]["value"] == "Fail"
-    )
-]
+            # =================================================
+            # CHECK FOR FAILED ITEMS
+            # =================================================
+
+            failed_items = [
+
+                item
+                for item in items
+
+                if (
+                    answers[item["id"]]["type"]
+                    == "PASS_FAIL_NA"
+
+                    and
+
+                    answers[item["id"]]["value"]
+                    == "Fail"
+                )
+            ]
 
 
-# =========================================================
-# OPEN FINDING ENTRY IF FAIL DETECTED
-# =========================================================
+            # =================================================
+            # FINDING ENTRY
+            # =================================================
 
-if failed_items:
+            if failed_items:
 
-    st.warning(
-        f"{len(failed_items)} failed checklist "
-        "item(s) detected. Please raise a finding."
-    )
+                st.warning(
+                    f"{len(failed_items)} failed "
+                    "checklist item(s) detected. "
+                    "Please raise a finding."
+                )
 
-    st.link_button(
-        "Open IPQC Finding Entry",
-        "https://ipqc-dashboard-krg8ucctibly9j4y5orjzl.streamlit.app/",
-        type="primary",
-        use_container_width=True
-    )
+
+                # Show which checklist items failed
+                for failed_item in failed_items:
+
+                    st.write(
+                        f"• "
+                        f"{failed_item['item_code']} — "
+                        f"{failed_item['item_description']}"
+                    )
+
+
+                st.link_button(
+                    "Open IPQC Finding Entry",
+                    "https://ipqc-dashboard-krg8ucctibly9j4y5orjzl.streamlit.app/",
+                    type="primary",
+                    use_container_width=True
+                )
+
 
         except Exception as e:
 
