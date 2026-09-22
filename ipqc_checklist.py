@@ -19,6 +19,42 @@ st.title("📋 IPQC Inspection")
 
 
 # =========================================================
+# COMPACT CHECKLIST UI
+# =========================================================
+
+st.markdown(
+    """
+    <style>
+
+    /* Reduce normal paragraph spacing */
+    div[data-testid="stMarkdownContainer"] p {
+        margin-bottom: 0.20rem;
+    }
+
+    /* Compact radio buttons */
+    div[role="radiogroup"] {
+        margin-top: -0.20rem;
+        margin-bottom: -0.35rem;
+    }
+
+    /* Compact divider */
+    hr {
+        margin-top: 0.65rem !important;
+        margin-bottom: 0.65rem !important;
+    }
+
+    /* Slightly reduce vertical block spacing */
+    div[data-testid="stVerticalBlock"] {
+        gap: 0.45rem;
+    }
+
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+
+# =========================================================
 # SUPABASE CONNECTION
 # =========================================================
 
@@ -210,7 +246,6 @@ def get_shift_date(dt):
         6 * 60 + 30
     )
 
-    # 00:00 - 06:29 belongs to previous day's night shift
     if current_minutes < morning_cutoff:
 
         return (
@@ -240,7 +275,6 @@ def get_day_night(dt):
         18 * 60 + 30
     )
 
-    # DAY = 06:30 - 18:29
     if (
         day_start
         <= current_minutes
@@ -249,7 +283,6 @@ def get_day_night(dt):
 
         return "DAY"
 
-    # NIGHT = 18:30 - 06:29
     return "NIGHT"
 
 
@@ -262,7 +295,7 @@ def get_roster_crew(
     shift_type
 ):
 
-    # Reference from supplied roster:
+    # Reference:
     # 22-Sep-2026
     # DAY   = B
     # NIGHT = A
@@ -279,7 +312,6 @@ def get_roster_crew(
     ).days
 
 
-    # 14-day DAY roster cycle
     day_cycle = [
         "B",
         "B",
@@ -298,7 +330,6 @@ def get_roster_crew(
     ]
 
 
-    # 14-day NIGHT roster cycle
     night_cycle = [
         "A",
         "A",
@@ -479,9 +510,14 @@ for item in items:
     )
 
 
+    # =====================================================
+    # ITEM CODE + DESCRIPTION ON SAME LINE
+    # Example:
+    # A:1 - Actual lot running and traveller information...
+    # =====================================================
+
     st.markdown(
-        f"**{item_code}**  \n"
-        f"{description}"
+        f"**{item_code} - {description}**"
     )
 
 
@@ -553,7 +589,14 @@ for item in items:
         }
 
 
-    st.markdown("---")
+    # -----------------------------------------------------
+    # COMPACT ITEM DIVIDER
+    # -----------------------------------------------------
+
+    st.markdown(
+        "<hr>",
+        unsafe_allow_html=True
+    )
 
 
 # =========================================================
@@ -755,8 +798,7 @@ if st.button(
             if not header_response.data:
 
                 raise Exception(
-                    "Inspection header "
-                    "was not created."
+                    "Inspection header was not created."
                 )
 
 
@@ -898,8 +940,7 @@ if st.button(
 
 
             st.info(
-                f"Inspection No: "
-                f"{inspection_no}"
+                f"Inspection No: {inspection_no}"
             )
 
 
@@ -943,12 +984,11 @@ if st.button(
                 )
 
 
-                # Show which checklist items failed
                 for failed_item in failed_items:
 
                     st.write(
                         f"• "
-                        f"{failed_item['item_code']} — "
+                        f"{failed_item['item_code']} - "
                         f"{failed_item['item_description']}"
                     )
 
