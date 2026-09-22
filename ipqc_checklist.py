@@ -973,6 +973,38 @@ if st.button(
                 "inspection results saved."
             )
 
+# =========================================================
+# CHECK FOR FAILED ITEMS
+# =========================================================
+
+failed_items = [
+    item
+    for item in items
+    if (
+        answers[item["id"]]["type"] == "PASS_FAIL_NA"
+        and
+        answers[item["id"]]["value"] == "Fail"
+    )
+]
+
+
+# =========================================================
+# OPEN FINDING ENTRY IF FAIL DETECTED
+# =========================================================
+
+if failed_items:
+
+    st.warning(
+        f"{len(failed_items)} failed checklist "
+        "item(s) detected. Please raise a finding."
+    )
+
+    st.link_button(
+        "Open IPQC Finding Entry",
+        "https://ipqc-dashboard-krg8ucctibly9j4y5orjzl.streamlit.app/",
+        type="primary",
+        use_container_width=True
+    )
 
         except Exception as e:
 
