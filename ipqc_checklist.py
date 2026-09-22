@@ -1,6 +1,7 @@
 import streamlit as st
 from supabase import create_client
 from datetime import datetime
+from zoneinfo import ZoneInfo
 import uuid
 
 
@@ -28,6 +29,13 @@ supabase = create_client(
     SUPABASE_URL,
     SUPABASE_KEY
 )
+
+
+# =========================================================
+# TIMEZONE
+# =========================================================
+
+MALAYSIA_TZ = ZoneInfo("Asia/Kuala_Lumpur")
 
 
 # =========================================================
@@ -167,6 +175,68 @@ if not items:
 
 
 # =========================================================
+# INSPECTION START DATE / TIME
+# =========================================================
+
+# Create a unique session key for the selected checklist/version.
+# This prevents the inspection time from being recreated every time
+# Streamlit reruns because the user clicks a radio button.
+
+inspection_session_key = (
+    f"{checklist_id}_{version_id}"
+)
+
+
+if (
+    "inspection_session_key"
+    not in st.session_state
+    or
+    st.session_state.inspection_session_key
+    != inspection_session_key
+):
+
+    st.session_state.inspection_session_key = (
+        inspection_session_key
+    )
+
+    st.session_state.inspection_start_time = (
+        datetime.now(MALAYSIA_TZ)
+    )
+
+
+inspection_datetime = (
+    st.session_state.inspection_start_time
+)
+
+
+# =========================================================
+# SHIFT CALCULATION
+# =========================================================
+
+def get_shift(dt):
+
+    current_minutes = (
+        dt.hour * 60
+        + dt.minute
+    )
+
+    day_start = 6 * 60 + 30      # 06:30
+    night_start = 18 * 60 + 30   # 18:30
+
+    # Day Shift: 06:30 - 18:29
+    if day_start <= current_minutes < night_start:
+        return "DAY"
+
+    # Night Shift: 18:30 - 06:29
+    else:
+        return "NIGHT"
+
+
+shift = get_shift(
+    inspection_datetime
+)
+
+# =========================================================
 # INSPECTION INFORMATION
 # =========================================================
 
@@ -183,22 +253,58 @@ st.caption(
 )
 
 
+# =========================================================
+# AUTOMATIC DATE / TIME & SHIFT
+# =========================================================
+
+col_dt, col_shift = st.columns(
+    [2, 1]
+)
+
+
+with col_dt:
+
+    st.text_input(
+        "Inspection Date & Time",
+        value=inspection_datetime.strftime(
+            "%d-%b-%Y %H:%M:%S"
+        ),
+        disabled=True
+    )
+
+
+with col_shift:
+
+    st.text_input(
+        "Shift",
+        value=shift,
+        disabled=True
+    )
+
+
+# =========================================================
+# LOT / MACHINE / INSPECTOR
+# =========================================================
+
 col1, col2, col3 = st.columns(3)
 
 
 with col1:
+
     lot_number = st.text_input(
         "Lot Number"
     )
 
 
 with col2:
+
     machine = st.text_input(
         "Machine"
     )
 
 
 with col3:
+
     inspector = st.text_input(
         "Inspector"
     )
@@ -221,12 +327,18 @@ for item in items:
     # SECTION HEADER
     # -----------------------------------------------------
 
-    if item["section_code"] != current_section:
+    if (
+        item["section_code"]
+        != current_section
+    ):
 
-        current_section = item["section_code"]
+        current_section = (
+            item["section_code"]
+        )
 
         st.markdown(
-            f"### {item['section_code']}. "
+            f"### "
+            f"{item['section_code']}. "
             f"{item['section_name']}"
         )
 
@@ -236,9 +348,18 @@ for item in items:
     # -----------------------------------------------------
 
     item_id = item["id"]
-    item_code = item["item_code"]
-    description = item["item_description"]
-    input_type = item["input_type"]
+
+    item_code = (
+        item["item_code"]
+    )
+
+    description = (
+        item["item_description"]
+    )
+
+    input_type = (
+        item["input_type"]
+    )
 
 
     st.markdown(
@@ -254,7 +375,9 @@ for item in items:
     if input_type == "PASS_FAIL_NA":
 
         answers[item_id] = {
+
             "type": "PASS_FAIL_NA",
+
             "value": st.radio(
                 "Result",
                 [
@@ -277,7 +400,9 @@ for item in items:
     elif input_type == "TEXT":
 
         answers[item_id] = {
+
             "type": "TEXT",
+
             "value": st.text_input(
                 description,
                 key=f"text_{item_id}",
@@ -293,7 +418,9 @@ for item in items:
     elif input_type == "DATE":
 
         answers[item_id] = {
+
             "type": "DATE",
+
             "value": st.date_input(
                 description,
                 value=None,
@@ -316,31 +443,37 @@ if st.button(
     use_container_width=True
 ):
 
-    # -----------------------------------------------------
+    # =====================================================
     # VALIDATE HEADER
-    # -----------------------------------------------------
+    # =====================================================
 
     missing_header = []
 
+
     if not lot_number.strip():
+
         missing_header.append(
             "Lot Number"
         )
 
+
     if not machine.strip():
+
         missing_header.append(
             "Machine"
         )
 
+
     if not inspector.strip():
+
         missing_header.append(
             "Inspector"
         )
 
 
-    # -----------------------------------------------------
+    # =====================================================
     # VALIDATE CHECKLIST
-    # -----------------------------------------------------
+    # =====================================================
 
     missing_items = []
 
@@ -353,29 +486,41 @@ if st.button(
                 item["id"]
             )
 
+
             if not answer:
+
                 missing_items.append(
                     item["item_code"]
                 )
+
                 continue
+
 
             value = answer["value"]
 
-            if value is None or value == "":
+
+            if (
+                value is None
+                or
+                value == ""
+            ):
+
                 missing_items.append(
                     item["item_code"]
                 )
 
 
-    # -----------------------------------------------------
+    # =====================================================
     # SHOW VALIDATION ERRORS
-    # -----------------------------------------------------
+    # =====================================================
 
     if missing_header:
 
         st.error(
             "Please complete the inspection information: "
-            + ", ".join(missing_header)
+            + ", ".join(
+                missing_header
+            )
         )
 
 
@@ -387,23 +532,34 @@ if st.button(
 
         st.write(
             "Missing:",
-            ", ".join(missing_items)
+            ", ".join(
+                missing_items
+            )
         )
 
 
-    # -----------------------------------------------------
+    # =====================================================
     # SAVE INSPECTION
-    # -----------------------------------------------------
+    # =====================================================
 
     else:
 
         try:
 
-            # -------------------------------------------------
-            # GENERATE UNIQUE INSPECTION NUMBER
-            # -------------------------------------------------
+            # =================================================
+            # SUBMISSION DATE / TIME
+            # =================================================
 
-            now = datetime.now()
+            submitted_datetime = (
+                datetime.now(
+                    MALAYSIA_TZ
+                )
+            )
+
+
+            # =================================================
+            # GENERATE UNIQUE INSPECTION NUMBER
+            # =================================================
 
             short_id = (
                 uuid.uuid4()
@@ -411,33 +567,62 @@ if st.button(
                 .upper()
             )
 
+
             inspection_no = (
+
                 f"INS-"
-                f"{now.strftime('%Y%m%d-%H%M%S')}-"
+                f"{submitted_datetime.strftime('%Y%m%d-%H%M%S')}-"
                 f"{short_id}"
+
             )
 
 
-            # -------------------------------------------------
+            # =================================================
             # INSERT INSPECTION HEADER
-            # -------------------------------------------------
+            # =================================================
 
             header_data = {
-                "inspection_no": inspection_no,
-                "checklist_id": checklist_id,
-                "version_id": version_id,
-                "lot_number": lot_number.strip(),
-                "machine": machine.strip(),
-                "inspector": inspector.strip(),
-                "status": "SUBMITTED",
-                "submitted_at": now.isoformat()
+
+                "inspection_no":
+                    inspection_no,
+
+                "checklist_id":
+                    checklist_id,
+
+                "version_id":
+                    version_id,
+
+                "lot_number":
+                    lot_number.strip(),
+
+                "machine":
+                    machine.strip(),
+
+                "inspector":
+                    inspector.strip(),
+
+                "shift":
+                    shift,
+
+                "inspection_datetime":
+                    inspection_datetime.isoformat(),
+
+                "status":
+                    "SUBMITTED",
+
+                "submitted_at":
+                    submitted_datetime.isoformat()
             }
 
 
             header_response = (
                 supabase
-                .table("inspection_header")
-                .insert(header_data)
+                .table(
+                    "inspection_header"
+                )
+                .insert(
+                    header_data
+                )
                 .execute()
             )
 
@@ -445,7 +630,8 @@ if st.button(
             if not header_response.data:
 
                 raise Exception(
-                    "Inspection header was not created."
+                    "Inspection header "
+                    "was not created."
                 )
 
 
@@ -455,32 +641,54 @@ if st.button(
             )
 
 
-            # -------------------------------------------------
+            # =================================================
             # PREPARE INSPECTION RESULTS
-            # -------------------------------------------------
+            # =================================================
 
             result_rows = []
 
 
             for item in items:
 
-                item_id = item["id"]
+                item_id = (
+                    item["id"]
+                )
 
-                answer = answers[item_id]
+                answer = (
+                    answers[item_id]
+                )
 
-                input_type = answer["type"]
+                input_type = (
+                    answer["type"]
+                )
 
-                value = answer["value"]
+                value = (
+                    answer["value"]
+                )
 
 
                 result_row = {
-                    "inspection_id": inspection_id,
-                    "item_id": item_id,
-                    "result": None,
-                    "text_value": None,
-                    "numeric_value": None,
-                    "date_value": None,
-                    "remark": None
+
+                    "inspection_id":
+                        inspection_id,
+
+                    "item_id":
+                        item_id,
+
+                    "result":
+                        None,
+
+                    "text_value":
+                        None,
+
+                    "numeric_value":
+                        None,
+
+                    "date_value":
+                        None,
+
+                    "remark":
+                        None
                 }
 
 
@@ -488,34 +696,49 @@ if st.button(
                 # PASS / FAIL / N/A
                 # ---------------------------------------------
 
-                if input_type == "PASS_FAIL_NA":
+                if (
+                    input_type
+                    == "PASS_FAIL_NA"
+                ):
 
-                    result_row["result"] = (
-                        value
-                    )
+                    result_row[
+                        "result"
+                    ] = value
 
 
                 # ---------------------------------------------
                 # TEXT
                 # ---------------------------------------------
 
-                elif input_type == "TEXT":
+                elif (
+                    input_type
+                    == "TEXT"
+                ):
 
-                    result_row["text_value"] = (
-                        value
-                    )
+                    result_row[
+                        "text_value"
+                    ] = value
 
 
                 # ---------------------------------------------
                 # DATE
                 # ---------------------------------------------
 
-                elif input_type == "DATE":
+                elif (
+                    input_type
+                    == "DATE"
+                ):
 
-                    result_row["date_value"] = (
+                    result_row[
+                        "date_value"
+                    ] = (
+
                         value.isoformat()
+
                         if value
+
                         else None
+
                     )
 
 
@@ -524,29 +747,36 @@ if st.button(
                 )
 
 
-            # -------------------------------------------------
+            # =================================================
             # INSERT ALL RESULTS
-            # -------------------------------------------------
+            # =================================================
 
             (
                 supabase
-                .table("inspection_results")
-                .insert(result_rows)
+                .table(
+                    "inspection_results"
+                )
+                .insert(
+                    result_rows
+                )
                 .execute()
             )
 
 
-            # -------------------------------------------------
+            # =================================================
             # SUCCESS
-            # -------------------------------------------------
+            # =================================================
 
             st.success(
                 "Inspection submitted successfully."
             )
 
+
             st.info(
-                f"Inspection No: {inspection_no}"
+                f"Inspection No: "
+                f"{inspection_no}"
             )
+
 
             st.write(
                 f"{len(result_rows)} "
