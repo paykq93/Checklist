@@ -1,6 +1,6 @@
 import streamlit as st
 from supabase import create_client
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
 import uuid
 
@@ -178,10 +178,6 @@ if not items:
 # INSPECTION START DATE / TIME
 # =========================================================
 
-# Create a unique session key for the selected checklist/version.
-# This prevents the inspection time from being recreated every time
-# Streamlit reruns because the user clicks a radio button.
-
 inspection_session_key = (
     f"{checklist_id}_{version_id}"
 )
@@ -210,31 +206,215 @@ inspection_datetime = (
 
 
 # =========================================================
-# SHIFT CALCULATION
+# SHIFT DATE
 # =========================================================
 
-def get_shift(dt):
+def get_shift_date(dt):
+    """
+    Shift cut-off:
+
+    DAY:
+        06:30 - 18:29
+
+    NIGHT:
+        18:30 - 06:29
+
+    For inspections between 00:00 and 06:29,
+    the shift belongs to the previous calendar day's
+    NIGHT shift.
+    """
 
     current_minutes = (
         dt.hour * 60
         + dt.minute
     )
 
-    day_start = 6 * 60 + 30      # 06:30
-    night_start = 18 * 60 + 30   # 18:30
+    morning_cutoff = (
+        6 * 60 + 30
+    )
 
-    # Day Shift: 06:30 - 18:29
-    if day_start <= current_minutes < night_start:
+    if current_minutes < morning_cutoff:
+
+        return (
+            dt.date()
+            - timedelta(days=1)
+        )
+
+    return dt.date()
+
+
+# =========================================================
+# DAY / NIGHT
+# =========================================================
+
+def get_day_night(dt):
+
+    current_minutes = (
+        dt.hour * 60
+        + dt.minute
+    )
+
+    day_start = (
+        6 * 60 + 30
+    )
+
+    night_start = (
+        18 * 60 + 30
+    )
+
+    # 06:30 - 18:29
+    if (
+        day_start
+        <= current_minutes
+        < night_start
+    ):
+
         return "DAY"
 
-    # Night Shift: 18:30 - 06:29
-    else:
-        return "NIGHT"
+    # 18:30 - 06:29
+    return "NIGHT"
 
 
-shift = get_shift(
+# =========================================================
+# A / B / C / D CREW CALCULATION
+# =========================================================
+
+def get_roster_crew(
+    shift_date,
+    shift_type
+):
+    """
+    CPS 2026 roster calculation.
+
+    Anchor taken from supplied roster:
+
+    22-Sep-2026
+        DAY   = B
+        NIGHT = A
+
+    The roster follows the repeating CPS pattern
+    shown in the supplied work roster.
+    """
+
+    anchor_date = date(
+        2026,
+        9,
+        22
+    )
+
+    days_difference = (
+        shift_date
+        - anchor_date
+    ).days
+
+
+    # -----------------------------------------------------
+    # DAY SHIFT ROSTER
+    #
+    # Anchor:
+    # 22-Sep-2026 = B
+    #
+    # CPS repeating pattern:
+    #
+    # B B B B
+    # C C C
+    # A A A A
+    # D D D
+    #
+    # 14-day cycle
+    # -----------------------------------------------------
+
+    day_cycle = [
+        "B",
+        "B",
+        "B",
+        "B",
+        "C",
+        "C",
+        "C",
+        "A",
+        "A",
+        "A",
+        "A",
+        "D",
+        "D",
+        "D"
+    ]
+
+
+    # -----------------------------------------------------
+    # NIGHT SHIFT ROSTER
+    #
+    # Anchor:
+    # 22-Sep-2026 = A
+    #
+    # CPS repeating pattern:
+    #
+    # A A A A
+    # D D D
+    # B B B B
+    # C C C
+    #
+    # 14-day cycle
+    # -----------------------------------------------------
+
+    night_cycle = [
+        "A",
+        "A",
+        "A",
+        "A",
+        "D",
+        "D",
+        "D",
+        "B",
+        "B",
+        "B",
+        "B",
+        "C",
+        "C",
+        "C"
+    ]
+
+
+    cycle_position = (
+        days_difference
+        % 14
+    )
+
+
+    if shift_type == "DAY":
+
+        return day_cycle[
+            cycle_position
+        ]
+
+
+    return night_cycle[
+        cycle_position
+    ]
+
+
+# =========================================================
+# CALCULATE CURRENT SHIFT
+# =========================================================
+
+shift_date = get_shift_date(
     inspection_datetime
 )
+
+shift_type = get_day_night(
+    inspection_datetime
+)
+
+crew = get_roster_crew(
+    shift_date,
+    shift_type
+)
+
+shift = (
+    f"{crew} - {shift_type}"
+)
+
 
 # =========================================================
 # INSPECTION INFORMATION
@@ -347,7 +527,9 @@ for item in items:
     # ITEM INFORMATION
     # -----------------------------------------------------
 
-    item_id = item["id"]
+    item_id = (
+        item["id"]
+    )
 
     item_code = (
         item["item_code"]
@@ -376,20 +558,22 @@ for item in items:
 
         answers[item_id] = {
 
-            "type": "PASS_FAIL_NA",
+            "type":
+                "PASS_FAIL_NA",
 
-            "value": st.radio(
-                "Result",
-                [
-                    "Pass",
-                    "Fail",
-                    "N/A"
-                ],
-                index=None,
-                horizontal=True,
-                key=f"result_{item_id}",
-                label_visibility="collapsed"
-            )
+            "value":
+                st.radio(
+                    "Result",
+                    [
+                        "Pass",
+                        "Fail",
+                        "N/A"
+                    ],
+                    index=None,
+                    horizontal=True,
+                    key=f"result_{item_id}",
+                    label_visibility="collapsed"
+                )
         }
 
 
@@ -401,13 +585,15 @@ for item in items:
 
         answers[item_id] = {
 
-            "type": "TEXT",
+            "type":
+                "TEXT",
 
-            "value": st.text_input(
-                description,
-                key=f"text_{item_id}",
-                label_visibility="collapsed"
-            )
+            "value":
+                st.text_input(
+                    description,
+                    key=f"text_{item_id}",
+                    label_visibility="collapsed"
+                )
         }
 
 
@@ -419,14 +605,16 @@ for item in items:
 
         answers[item_id] = {
 
-            "type": "DATE",
+            "type":
+                "DATE",
 
-            "value": st.date_input(
-                description,
-                value=None,
-                key=f"date_{item_id}",
-                label_visibility="collapsed"
-            )
+            "value":
+                st.date_input(
+                    description,
+                    value=None,
+                    key=f"date_{item_id}",
+                    label_visibility="collapsed"
+                )
         }
 
 
@@ -496,7 +684,9 @@ if st.button(
                 continue
 
 
-            value = answer["value"]
+            value = (
+                answer["value"]
+            )
 
 
             if (
