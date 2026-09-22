@@ -94,6 +94,24 @@ if not checklists:
 
 
 # =========================================================
+# FACTORY SELECTION
+# =========================================================
+
+factory = st.selectbox(
+    "Factory",
+    [
+        "",
+        "BKF",
+        "BLF",
+        "SPF"
+    ]
+)
+
+if not factory:
+    st.stop()
+
+
+# =========================================================
 # AREA SELECTION
 # =========================================================
 
@@ -207,7 +225,7 @@ if not items:
 # =========================================================
 
 inspection_session_key = (
-    f"{checklist_id}_{version_id}"
+    f"{factory}_{checklist_id}_{version_id}"
 )
 
 if (
@@ -246,6 +264,7 @@ def get_shift_date(dt):
         6 * 60 + 30
     )
 
+    # 00:00 - 06:29 belongs to previous day's night shift
     if current_minutes < morning_cutoff:
 
         return (
@@ -275,6 +294,7 @@ def get_day_night(dt):
         18 * 60 + 30
     )
 
+    # DAY = 06:30 - 18:29
     if (
         day_start
         <= current_minutes
@@ -283,6 +303,7 @@ def get_day_night(dt):
 
         return "DAY"
 
+    # NIGHT = 18:30 - 06:29
     return "NIGHT"
 
 
@@ -295,7 +316,7 @@ def get_roster_crew(
     shift_type
 ):
 
-    # Reference:
+    # Reference from supplied roster:
     # 22-Sep-2026
     # DAY   = B
     # NIGHT = A
@@ -312,6 +333,7 @@ def get_roster_crew(
     ).days
 
 
+    # 14-day DAY roster cycle
     day_cycle = [
         "B",
         "B",
@@ -330,6 +352,7 @@ def get_roster_crew(
     ]
 
 
+    # 14-day NIGHT roster cycle
     night_cycle = [
         "A",
         "A",
@@ -398,6 +421,7 @@ st.subheader(
 )
 
 st.caption(
+    f"Factory: {factory}  |  "
     f"Area: {area}  |  "
     f"Process: {process}  |  "
     f"Revision: {revision}"
@@ -512,8 +536,6 @@ for item in items:
 
     # =====================================================
     # ITEM CODE + DESCRIPTION ON SAME LINE
-    # Example:
-    # A:1 - Actual lot running and traveller information...
     # =====================================================
 
     st.markdown(
@@ -753,6 +775,9 @@ if st.button(
 
                 "inspection_no":
                     inspection_no,
+
+                "factory":
+                    factory,
 
                 "checklist_id":
                     checklist_id,
