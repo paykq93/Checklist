@@ -542,36 +542,6 @@ for item in items:
         f"**{item_code} - {description}**"
     )
 
-# =====================================================
-# REFERENCE IMAGE
-# =====================================================
-
-reference_image_path = (
-    item.get("reference_image_path")
-)
-
-
-if reference_image_path:
-
-    reference_image_url = (
-        supabase
-        .storage
-        .from_("checklist-reference")
-        .get_public_url(
-            reference_image_path
-        )
-    )
-
-
-    with st.expander(
-        "📷 View Reference Image"
-    ):
-
-        st.image(
-            reference_image_url,
-            caption="IPQC Inspection Reference",
-            width=500
-        )
 
     # -----------------------------------------------------
     # PASS / FAIL / N/A
