@@ -332,7 +332,6 @@ def get_roster_crew(
         - anchor_date
     ).days
 
-
     # 14-day DAY roster cycle
     day_cycle = [
         "B",
@@ -350,7 +349,6 @@ def get_roster_crew(
         "D",
         "D"
     ]
-
 
     # 14-day NIGHT roster cycle
     night_cycle = [
@@ -370,12 +368,10 @@ def get_roster_crew(
         "C"
     ]
 
-
     cycle_position = (
         days_difference
         % 14
     )
-
 
     if shift_type == "DAY":
 
@@ -533,45 +529,64 @@ for item in items:
         item["input_type"]
     )
 
-
-    # =====================================================
-    # ITEM CODE + DESCRIPTION ON SAME LINE
-    # =====================================================
-
-    st.markdown(
-        f"**{item_code} - {description}**"
-    )
-
-    # =====================================================
-    # REFERENCE IMAGE
-    # =====================================================
-
     reference_image_path = (
-        item.get("reference_image_path")
+        item.get(
+            "reference_image_path"
+        )
     )
 
+
+    # =====================================================
+    # ITEM DESCRIPTION + REFERENCE IMAGE
+    # =====================================================
 
     if reference_image_path:
 
-        reference_image_url = (
-            supabase
-            .storage
-            .from_("checklist-reference")
-            .get_public_url(
-                reference_image_path
-            )
+        item_col, reference_col = st.columns(
+            [5, 1]
         )
 
+        with item_col:
 
-        with st.expander(
-            "📷 View Reference Image"
-        ):
-    
+            st.markdown(
+                f"**{item_code} - {description}**"
+            )
+
+        with reference_col:
+
+            show_reference = st.toggle(
+                "📷 View Reference",
+                key=f"reference_{item_id}"
+            )
+
+
+        if show_reference:
+
+            reference_image_url = (
+                supabase
+                .storage
+                .from_(
+                    "checklist-reference"
+                )
+                .get_public_url(
+                    reference_image_path
+                )
+            )
+
             st.image(
                 reference_image_url,
                 caption="IPQC Inspection Reference",
                 width=500
             )
+
+
+    else:
+
+        st.markdown(
+            f"**{item_code} - {description}**"
+        )
+
+
     # -----------------------------------------------------
     # PASS / FAIL / N/A
     # -----------------------------------------------------
